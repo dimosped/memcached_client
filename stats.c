@@ -48,17 +48,17 @@ double getStdDev(struct stat* stat) {
 }//End getStdDev()
 
 //Should we exit because time has expired?
-void checkExit(struct config* config) {
+int checkExit(struct config* config) {
 
   int runTime = config->run_time;
   struct timeval currentTime;
   gettimeofday(&currentTime, NULL);
   double totalTime = currentTime.tv_sec - start_time.tv_sec + 1e-6*(currentTime.tv_sec - start_time.tv_sec);
   if(totalTime >= runTime && runTime >0) {
-    printf("Ran for %f, exiting\n", totalTime);
-    exit(0);
+    // printf("Ran for %f, exiting\n", totalTime);
+    return 1;
   }
-
+  return 0;
 }//End checkExit()
 
 double findQuantile(struct stat* stat, double quantile) { 
@@ -95,6 +95,19 @@ double findQuantile(struct stat* stat, double quantile) {
 
 }//End findQuantile()
 
+void printCDF(struct config* config) {
+
+  pthread_mutex_lock(&stats_lock);
+
+  double y = 0;
+  for (y = 0; y <= 0.99; y+=0.3) {
+    double q = findQuantile(&global_stats.response_time, y);
+    printf("%4.2f\t%10f\n", y, 1000*q);
+  }
+
+  pthread_mutex_unlock(&stats_lock);
+}
+
 void printGlobalStats(struct config* config) {
 
   pthread_mutex_lock(&stats_lock);
@@ -117,16 +130,20 @@ void printGlobalStats(struct config* config) {
     printf("%d ", config->workers[i]->n_requests);
   } 
   printf("\n");
-  //Reset stats
-  memset(&global_stats, 0, sizeof(struct memcached_stats));
-  global_stats.response_time.min = 1000000;
-  global_stats.last_time = currentTime;
 
-  checkExit(config);
+  //Reset stats
+  //memset(&global_stats, 0, sizeof(struct memcached_stats));
+  //global_stats.response_time.min = 1000000;
+  //global_stats.last_time = currentTime;
+
+  if (checkExit(config)) {
+    printCDF(config);
+    exit(0);
+  }
+
   pthread_mutex_unlock(&stats_lock);
 
 }//End printGlobalStats()
-
 
 //Print out statistics every second
 void statsLoop(struct config* config) {
@@ -142,7 +159,6 @@ void statsLoop(struct config* config) {
     printGlobalStats(config);
     sleep(config->stats_time);
   }//End while()
-
 
 }//End statisticsLoop()
 
