@@ -367,7 +367,7 @@ struct dep_dist* loadAndScaleDepFile_dimos(struct config* config) {
 struct request* generateRequest(struct config* config, struct worker* worker) {
 
   //Pick a random connection
-  struct conn* conn = worker->connections[randomFunction(worker) % worker->nConnections];
+  struct conn* conn = worker->connections[randomFunction() % worker->nConnections];
 
   char* value = NULL;
   int valueSize = 0;
@@ -375,7 +375,7 @@ struct request* generateRequest(struct config* config, struct worker* worker) {
 
   int warmup_index = 0;
   if(config->dep_dist != NULL) {
-  //printf("generating..\n");
+    //printf("generating..\n");
     struct dep_entry* dep_entry = NULL;
     if(config->pre_load) {
 
@@ -398,7 +398,6 @@ struct request* generateRequest(struct config* config, struct worker* worker) {
       request = createRequest(op, conn, worker, key, value,type);
       request->next_request = NULL;
       return request;
-
     } else { 
      dep_entry = getRandomDepEntry(config->dep_dist, worker);
     }
@@ -417,24 +416,28 @@ struct request* generateRequest(struct config* config, struct worker* worker) {
   //Pick a request type
   struct request* request = NULL;
   int op = 0;
-  double rand = ((randomFunction(worker) % 10000)/10000.0);
-     
+  double rand = ((randomFunction() % 10000)/10000.0);
 
-   if (rand < config->incr_frac) {
+  /*int j;
+  for (j = 0; j < 100; ++j) {
+    printf("\n---------end (%f)-----------\n", ((randomFunction() % 10000)/10000.0));
+  }*/
+
+  if (rand < config->incr_frac) {
 
       op = INCR;
       int type = TYPE_INCR;
       int keyIndex = getIntQuantile(config->key_pop_dist);
       key = config->key_list->keys[keyIndex];
 
-      request = createRequest(op, conn, worker, key, value,type);
+      request = createRequest(op, conn, worker, key, value, type);
       request->next_request = NULL;      
 
-  } else if( ((randomFunction(worker) % 10000)/10000.0) < config->get_frac) {
+  } else if( ((randomFunction() % 10000)/10000.0) < config->get_frac) {
+    // This is a get or multiget request type
 
-    //See if this should be a multiget
-    rand = ((randomFunction(worker) % 10000)/10000.0);
-//    if(rand < config->multiget_frac) {
+    rand = ((randomFunction() % 10000)/10000.0);
+    //    if(rand < config->multiget_frac) {
     if(rand < config->multiget_frac) {
       //printf("generating multiget\n");
       //Yes it's a multiget
@@ -499,7 +502,7 @@ struct request* generateRequest(struct config* config, struct worker* worker) {
       } else {
         valueSize = getIntQuantile(config->value_size_dist);
         if(valueSize == 0) {
-          printf("failboat: zero sizedd value\n");
+          printf("failboat: zero sized value\n");
           exit(-1);
         }
       }

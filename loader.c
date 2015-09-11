@@ -22,6 +22,7 @@ void printUsage() {
                 "        [-j preload data]\n"
                 "        [-l arg use a fixed number of gets per multiget]\n"
                 "        [-m arg fraction of requests that are multiget]\n"
+                "        [-i arg fraction of requests that are increment]\n"
                 "        [-n enable naggle's algorithm]\n"
                 "        [-N arg provide a key population distribution file]\n"
                 "        [-u use UDP protocl (default: TCP)]\n"
@@ -41,7 +42,7 @@ struct config* parseArgs(int argc, char** argv) {
   
   struct config* config = malloc(sizeof(struct config));
 
-  int ncpus = sysconf(_SC_NPROCESSORS_ONLN);
+  int ncpus = (int) sysconf(_SC_NPROCESSORS_ONLN);
   config->n_cpus = ncpus;
   config->protocol_mode = TCP_MODE;
   config->n_workers = 1;
@@ -108,12 +109,14 @@ struct config* parseArgs(int argc, char** argv) {
       case 'f':
         config->fixed_size = atoi(optarg);
         break;
-      
 
       case 'i':
-        config->incr_frac = atof(optarg);
+        config->incr_frac = (float) atof(optarg);
+        if(config->incr_frac < 0 || config->incr_frac > 1.0){
+          printf("Increment fraction must be between 0 and 1.0\n");
+          exit(-1);
+        }
         break;
-
 
       case 'j':
         config->pre_load = 1;
@@ -140,7 +143,7 @@ struct config* parseArgs(int argc, char** argv) {
         break;
 
       case 'm':
-        config->multiget_frac = atof(optarg);
+        config->multiget_frac = (float) atof(optarg);
         break;
 
       case '1':
@@ -162,7 +165,7 @@ struct config* parseArgs(int argc, char** argv) {
  
       //Fraction of requests that are gets
       case 'g':
-        config->get_frac = atof(optarg);     
+        config->get_frac = (float) atof(optarg);
         if(config->get_frac < 0 || config->get_frac > 1.0){
           printf("Get fraction must be between 0 and 1.0\n");   
           exit(-1);
@@ -181,12 +184,11 @@ struct config* parseArgs(int argc, char** argv) {
       case 's':
         config->server_file=calloc(strlen(optarg)+1, sizeof(char));
         strcpy(config->server_file, optarg);
-
         break;
       
       case 'S':
-	config->scaling_factor=atoi(optarg);
-	break;
+        config->scaling_factor=atoi(optarg);
+        break;
       
       case 't':
         config->run_time = atoi(optarg);     
@@ -204,11 +206,15 @@ struct config* parseArgs(int argc, char** argv) {
       case 'x':
         timingTests();
         exit(0);
-        break;
+        //break;
 
       case 'z':
         config->zynga = 1;     
         break;
+
+      default:
+        printUsage();
+        exit(1);
     }
   }
 
@@ -294,10 +300,8 @@ void setupLoad(struct config* config) {
     config->dep_dist = loadAndScaleDepFile_dimos(config);
   }
 
-  exit(1);
-
   if(config->value_size_dist == NULL){
-    config->value_size_dist = createUniformDistribution(1, 1024); 
+    config->value_size_dist = createUniformDistribution(1, 1024);
   }
 
   if(config->key_pop_dist == NULL){
