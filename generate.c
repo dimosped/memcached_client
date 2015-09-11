@@ -163,6 +163,8 @@ double harmonicSum(int size, double alpha){
    sum+= (1.0 / pow(1.0*i, alpha));
  return sum;
 }
+
+
 struct dep_dist* loadDepFile(struct config* config) { 
 
   printf("Loading key value file...");
@@ -179,7 +181,7 @@ struct dep_dist* loadDepFile(struct config* config) {
   dist->n_entries = lines;
   int i = lines-1;
   file = fopen(config->input_file, "r");
-  double avg_size=0; 
+  double avg_size=0;
   while (fgets(lineBuffer, sizeof(lineBuffer), file)) {
     char* cdfValue = strtok(lineBuffer, " ,\n");
     char* sizeValue = strtok(NULL, " ,\n");
@@ -188,6 +190,10 @@ struct dep_dist* loadDepFile(struct config* config) {
     entry->cdf = atof(cdfValue);
     entry->size = atoi(sizeValue);
     strcpy(entry->key, key);
+
+    //fprintf(stdout, "(%f, %d, %s)\n", entry->cdf, entry->size, entry->key);
+    fflush(stdout);
+
     dist->dep_entries[i] = entry;
     i--;   
     avg_size+=entry->size; 
@@ -211,62 +217,147 @@ struct dep_dist* loadAndScaleDepFile(struct config* config) {
   int lines = 0;
   FILE* file = fopen(config->input_file, "r");
   FILE* fileOut = fopen(config->output_file, "w");
+
+  // Get the total number of lines
   while (fgets(lineBuffer, sizeof(lineBuffer), file)) {
     lines++;
   }
   fclose(file);
-  
-	  int newLines=lines*config->scaling_factor;
-	  double sum2=harmonicSum(newLines, ALPHA);
-	  double ratio=harmonicSum(lines, ALPHA)/sum2;
-	  
-	  dist->dep_entries = malloc(sizeof(struct dep_entry*)*newLines);
-	  dist->n_entries = newLines;
 
-	  int i = newLines-1;
-	  file = fopen(config->input_file, "r");
-	  double prev=1.0, oldPrev=1.0;
-          double avg_size=0.0; 
-	  while (fgets(lineBuffer, sizeof(lineBuffer), file)) {
+  // Compute the new (scaled) file's total lines
+  int newLines=lines*config->scaling_factor;
+  double sum2=harmonicSum(newLines, ALPHA);
+  double ratio=harmonicSum(lines, ALPHA)/sum2;
 
-	    char* cdfValue = strtok(lineBuffer, " ,\n");
-	    char* sizeValue = strtok(NULL, " ,\n");
-	    struct dep_entry* entry = malloc(sizeof(struct dep_entry));
-	    double temp = entry->cdf = atof(cdfValue);
-	    entry->cdf = prev-(oldPrev-temp)*ratio;
-	    oldPrev=temp;
-	    entry->size = atoi(sizeValue);
-	    int keySize = randomFunction() % MAX_KEY_SIZE;
-	    while(keySize <= 1) keySize = randomFunction() % MAX_KEY_SIZE;
-	    char* newKey = randomString(keySize);
-	    strcpy(entry->key, newKey);
-	    dist->dep_entries[i] = entry;
-            fprintf(fileOut, "%15.13f,  %d, %s\n", entry->cdf, entry->size, entry->key); 
-	    prev = entry->cdf;
-	    i--;    
-	    avg_size+=entry->size; 	
-	  }//End while()
-	  fclose(file);
-	  avg_size = avg_size/lines;
-          config->keysToPreload = floor(1024.0*1024*config->server_memory/(avg_size+150));
-          if(config->keysToPreload > newLines) config->keysToPreload = newLines;
- 	  printf("Average Size = %10.5f\n", avg_size ); 
- 	  printf("Keys to Preload = %d\n", config->keysToPreload ); 
-	  while(i>=0){
-	    struct dep_entry* entry = malloc(sizeof(struct dep_entry));
-	    entry->cdf = prev-(1.0/pow(newLines-i, ALPHA))/sum2; 
-	    entry->size = dist->dep_entries[lines+i]->size;
-	    int keySize = randomFunction() % MAX_KEY_SIZE;
-	    while(keySize <= 1) keySize = randomFunction() % MAX_KEY_SIZE;
-	    char* newKey = randomString(keySize);
-	    strcpy(entry->key, newKey);
-	    dist->dep_entries[i] = entry;
-            fprintf(fileOut, "%15.13f, %d, %s\n", entry->cdf, entry->size, entry->key); 
-	    prev = entry->cdf;
-            i--;
-	    if(entry->cdf<0) printf("cdf=%10.8f\n", entry->cdf);
- 	   }
+  dist->dep_entries = malloc(sizeof(struct dep_entry*)*newLines);
+  dist->n_entries = newLines;
+
+  int i = newLines-1;
+  file = fopen(config->input_file, "r");
+  double prev=1.0, oldPrev=1.0;
+  double avg_size=0.0;
+  while (fgets(lineBuffer, sizeof(lineBuffer), file)){
+    char* cdfValue = strtok(lineBuffer, " ,\n");
+    char* sizeValue = strtok(NULL, " ,\n");
+    struct dep_entry* entry = malloc(sizeof(struct dep_entry));
+    double temp = entry->cdf = atof(cdfValue);
+    entry->cdf = prev-(oldPrev-temp)*ratio;
+    oldPrev=temp;
+    entry->size = atoi(sizeValue);
+    int keySize = randomFunction() % MAX_KEY_SIZE;
+    while(keySize <= 1) keySize = randomFunction() % MAX_KEY_SIZE;
+    char* newKey = randomString(keySize);
+    strcpy(entry->key, newKey);
+    dist->dep_entries[i] = entry;
+    fprintf(fileOut, "%15.13f,  %d, %s\n", entry->cdf, entry->size, entry->key);
+    prev = entry->cdf;
+    i--;
+    avg_size+=entry->size;
+  }//End while()
+  fclose(file);
+  avg_size = avg_size/lines;
+  config->keysToPreload = floor(1024.0*1024*config->server_memory/(avg_size+(MAX_KEY_SIZE/2.0f)));
+  printf("\nServer has capacity for %d keys \n", config->keysToPreload);
+  if(config->keysToPreload > newLines)
+    config->keysToPreload = newLines;
+  printf("Average Size = %10.5f\n", avg_size );
+  printf("Keys to Preload = %d \n", config->keysToPreload);
+  while(i>=0){
+    struct dep_entry* entry = malloc(sizeof(struct dep_entry));
+    entry->cdf = prev-(1.0/pow(newLines-i, ALPHA))/sum2;
+    entry->size = dist->dep_entries[lines+i]->size;
+    int keySize = randomFunction() % MAX_KEY_SIZE;
+    while(keySize <= 1) keySize = randomFunction() % MAX_KEY_SIZE;
+    char* newKey = randomString(keySize);
+    strcpy(entry->key, newKey);
+    dist->dep_entries[i] = entry;
+    fprintf(fileOut, "%15.13f, %d, %s\n", entry->cdf, entry->size, entry->key);
+    prev = entry->cdf;
+    i--;
+    if(entry->cdf < 0)
+      printf("Less than zero cdf=%10.8f\n", entry->cdf);
+   }
   fclose(fileOut); 
+#ifdef FLEXUS
+  MAGIC2(200, 0);
+#endif
+  return dist;
+}
+
+struct dep_dist* loadAndScaleDepFile_dimos(struct config* config) {
+
+  printf("Loading key value file...");
+  struct dep_dist* dist = malloc(sizeof(struct dep_dist));
+
+  char lineBuffer[1024];
+  int lines = 0;
+  FILE* file = fopen(config->input_file, "r");
+  FILE* fileOut = fopen(config->output_file, "w");
+
+  // Get the total number of lines
+  while (fgets(lineBuffer, sizeof(lineBuffer), file)) {
+    lines++;
+  }
+  //fclose(file);
+
+  // Compute the new (scaled) file's total lines
+  int newLines=lines*config->scaling_factor;
+
+  // Create the new entries
+  dist->dep_entries = malloc(sizeof(struct dep_entry*)*newLines);
+  dist->n_entries = newLines;
+
+  // Reset file pointer
+  fseek(file, 0, SEEK_SET); // go to the beginning of the file
+
+  // Init the main counter
+  int i = 0;
+
+  // Read the file and store the values in an array
+  double *cdfVals = malloc(lines * sizeof *cdfVals);
+  int *objSize = malloc(lines * sizeof *objSize);
+  i = 0;
+  while (fgets(lineBuffer, sizeof(lineBuffer), file)){
+    cdfVals[i] = atof(strtok(lineBuffer, " ,\n"));
+    objSize[i] = atoi(strtok(NULL, " ,\n"));
+    i++;
+  }
+  fclose(file);
+
+  // Now iterate and create the dep entries
+  int j = 0, k = 0;
+  double currVal;
+  double nextVal;
+  double step;
+  double avg_size = 0.0f;
+  for(i=0; i < lines; i++) {
+    currVal = cdfVals[i];
+
+    if (i == lines - 1)
+      nextVal = 0;
+    else
+      nextVal = cdfVals[i + 1];
+
+    step = (currVal - nextVal) / config->scaling_factor;
+    k = 0;
+    while (k < config->scaling_factor) {
+      struct dep_entry *entry = malloc(sizeof(struct dep_entry));
+      entry->cdf = currVal - k * step;
+      entry->size = objSize[j % lines];
+      int keySize = randomFunction() % MAX_KEY_SIZE;
+      while (keySize <= 1)
+        keySize = randomFunction() % MAX_KEY_SIZE;
+      char *newKey = randomString(keySize);
+      strcpy(entry->key, newKey);
+      dist->dep_entries[newLines-1-j] = entry;
+      fprintf(fileOut, "%15.13f,  %d, %s\n", entry->cdf, entry->size, entry->key);
+      j++;
+      avg_size += entry->size;
+      k++;
+    }
+  }
+
+  fclose(fileOut);
 #ifdef FLEXUS
   MAGIC2(200, 0);
 #endif

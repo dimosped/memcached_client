@@ -267,27 +267,39 @@ void setupLoad(struct config* config) {
 
   if(config->server_file==NULL){
     printf("Option '-s' is mandatory and requires a server configuration file as an argument\n");
-    exit(-1);	
+    exit(-1);
   }
+
   loadServerFile(config);
 
   if(config->n_workers % config->n_servers != 0){
    printf("Number of client (worker) threads must be divisible by the number of servers\n");
-   exit(-1);	
+   exit(-1);
   }
-  
+
   if((config->output_file == NULL) && (config->scaling_factor>1)){
-   printf("Preloading requires an output file\n");
-   exit(-1);	
+    printf("Preloading requires an output file\n");
+    exit(-1);
   }
-  
-  if(!config->pre_load || (config->scaling_factor==1)) config->dep_dist = loadDepFile(config);
-  else config->dep_dist = loadAndScaleDepFile(config);
-  
+
+  printf("----------%d---------", config->pre_load);
+
+  if(config->pre_load || (config->scaling_factor==1)) {
+    //printf("INSIDE");
+    config->dep_dist = loadDepFile(config);
+  }
+  else {
+    //printf("OUTSIDE");
+    //config->dep_dist = loadAndScaleDepFile(config);
+    config->dep_dist = loadAndScaleDepFile_dimos(config);
+  }
+
+  exit(1);
 
   if(config->value_size_dist == NULL){
     config->value_size_dist = createUniformDistribution(1, 1024); 
   }
+
   if(config->key_pop_dist == NULL){
     config->key_pop_dist = createUniformDistribution(0, config->n_keys -1);
     printf("created uniform distribution %d\n", config->n_keys);
@@ -335,6 +347,9 @@ int main(int argc, char** argv){
   printConfiguration(config);
 
   setupLoad(config);
+
+  //exit(0);
+
   createWorkers(config);
   statsLoop(config);
   return 0;

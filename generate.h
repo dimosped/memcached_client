@@ -51,4 +51,6 @@ struct key_list* generateKeys(struct config* config);
 struct request* generateRequest(struct config* config, struct worker* worker);
 double harmonicSum(int size, double alpha);
 
+struct dep_dist* loadAndScaleDepFile_dimos(struct config* config);
+
 #endif
