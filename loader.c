@@ -283,14 +283,15 @@ void setupLoad(struct config* config) {
    exit(-1);
   }
 
-  if((config->output_file == NULL) && (config->scaling_factor>1)){
-    printf("Preloading requires an output file\n");
+  if((config->output_file == NULL) && (config->scaling_factor>=1)){
+    printf("Scaling the dataset requires an output file\n");
     exit(-1);
   }
 
-  printf("----------%d---------", config->pre_load);
+  //printf("----------%d---------", config->pre_load);
 
-  if(config->pre_load || (config->scaling_factor==1)) {
+  //if(config->pre_load || (config->scaling_factor==1)) {
+  if(config->scaling_factor==0) {
     //printf("INSIDE");
     config->dep_dist = loadDepFile(config);
   }
@@ -306,10 +307,11 @@ void setupLoad(struct config* config) {
 
   if(config->key_pop_dist == NULL){
     config->key_pop_dist = createUniformDistribution(0, config->n_keys -1);
-    printf("created uniform distribution %d\n", config->n_keys);
+    //printf("created uniform distribution %d\n", config->n_keys);
   } else {
     config->n_keys = CDF_VALUES;
   }
+
   config->key_list = generateKeys(config);
   
   if(config->multiget_dist == NULL) {

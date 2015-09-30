@@ -12,7 +12,7 @@ void sendRequest(struct request* request) {
   if(request->connection->protocol == TCP_MODE){
     tcpSendRequest(sendRequest);
   } else if(request->connection->protocol == UDP_MODE){ 
-    printf("UDP not working\n"); 
+    printf("UDP not working\n");
     exit(-1);
     udpSendRequest(sendRequest);
   } else {
@@ -63,6 +63,8 @@ void tcpSendRequest(struct request* request) {
 
       memcpy(ptr, sendRequest->value, sendRequest->value_size);
 
+      myRdtsc(&(request->send_time_tsc));
+
       gettimeofday(&request->send_time, NULL);
       writeBlock(request->connection->sock, oneBigPacket, totalSize);
 
@@ -96,6 +98,8 @@ void tcpSendRequest(struct request* request) {
       memcpy(ptr, sendRequest->value, sendRequest->value_size);
       sendRequest = sendRequest->next_request;
     }
+
+    myRdtsc(&(request->send_time_tsc));
 
     gettimeofday(&request->send_time, NULL);
     writeBlock(request->connection->sock, oneBigPacket, totalSize);

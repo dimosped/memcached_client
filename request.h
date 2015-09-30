@@ -70,6 +70,7 @@ struct request{
   char* value;
   int value_size;
   struct timeval send_time;
+  unsigned long long send_time_tsc;
   int id;
   struct request* next_request;
   int request_type;

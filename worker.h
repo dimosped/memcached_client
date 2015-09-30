@@ -28,6 +28,7 @@ struct worker {
   int cpu_num;
   struct timeval last_write_time;
   int interarrival_time;
+  unsigned long cpuHz;
 
   //Circular queue
   struct request* request_queue[QUEUE_SIZE];

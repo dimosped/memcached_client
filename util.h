@@ -23,5 +23,7 @@ int randomFunction();
 int parRandomFunction(struct worker* worker);
 double round(double d);
 
-
+__inline__ void myRdtsc(unsigned long long *);
+__inline__ void calibrateCpuClockSpeed(unsigned long *);
+__inline__ void getTimeFromCpuCycles(unsigned long long *, unsigned long *, struct timeval *);
 #endif

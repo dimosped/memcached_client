@@ -188,3 +188,53 @@ void readBlock(int fd, void* buffer, int readSize) {
 
 }//End readBlock()
 
+
+#if defined(__i386__)
+
+__inline__ unsigned long long rdtsc(unsigned long long *pTstampVal)
+{
+     __asm__ volatile (".byte 0x0f, 0x31" : "=A" (*pTstampVal));
+     return x;
+}
+#elif defined(__x86_64__)
+
+
+__inline__ void myRdtsc(unsigned long long *pTstampVal)
+{
+  //unsigned hi, lo;
+  //__asm__ __volatile__ ("rdtscp" : "=a"(lo), "=d"(hi));
+  //*pTstampVal =  ( (unsigned long long)lo)|( ((unsigned long long)hi)<<32 );
+
+  unsigned cycles_low, cycles_high;
+  asm volatile("RDTSCP\n\t"
+          "mov %%edx, %0\n\t"
+          "mov %%eax, %1\n\t"
+          "CPUID\n\t": "=r" (cycles_high), "=r"(cycles_low):: "%rax", "%rbx", "%rcx", "%rdx");
+
+  *pTstampVal = ( (unsigned long long)cycles_low)|( ((unsigned long long)cycles_high)<<32 );
+}
+
+__inline__ void calibrateCpuClockSpeed(unsigned long *cyclesPerSec){
+  unsigned  int sleepTimeMsec = 250; // in milliseconds
+  unsigned long long avgCycles = 0;
+  unsigned long long mytstampA, mytstampB;
+
+  unsigned  int iterations;
+  for (iterations = 0; iterations < 10; ++iterations) {
+    myRdtsc(&mytstampA);
+    nanosleep((struct timespec[]){{sleepTimeMsec/1000, (sleepTimeMsec%1000)*1000000L}}, NULL);
+    myRdtsc(&mytstampB);
+    avgCycles += mytstampB - mytstampA;
+  }
+
+  avgCycles = avgCycles / iterations;
+
+  *cyclesPerSec = ((1000 * avgCycles) / sleepTimeMsec);
+}
+
+__inline__ void getTimeFromCpuCycles(unsigned long long *pCycles, unsigned long *cpuHz, struct timeval *pRetTime){
+  pRetTime->tv_sec = (__time_t) ((*pCycles)/(*cpuHz));
+  pRetTime->tv_usec = (__suseconds_t) ((((*pCycles)%(*cpuHz))/((double)(*cpuHz)))*1000000L);
+}
+
+#endif

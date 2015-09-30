@@ -190,17 +190,28 @@ struct dep_dist* loadDepFile(struct config* config) {
     entry->cdf = atof(cdfValue);
     entry->size = atoi(sizeValue);
     strcpy(entry->key, key);
-
-    //fprintf(stdout, "(%f, %d, %s)\n", entry->cdf, entry->size, entry->key);
-    fflush(stdout);
-
+    //fprintf(stdout, "(%1.10f, %d, %s)\n", entry->cdf, entry->size, entry->key);
+    //fflush(stdout);
     dist->dep_entries[i] = entry;
     i--;   
     avg_size+=entry->size; 
   }//End while()
+
+  //avg_size = avg_size/lines;
+  //config->keysToPreload = floor(1024.0*1024*config->server_memory/(avg_size+150));
+  //if(config->keysToPreload>lines) config->keysToPreload=lines-1;
+
+  // Now set the total number of keys to pre-load
   avg_size = avg_size/lines;
-  config->keysToPreload = floor(1024.0*1024*config->server_memory/(avg_size+150));
-  if(config->keysToPreload>lines) config->keysToPreload=lines-1;
+  config->keysToPreload = floor(1024.0*1024*config->server_memory/(avg_size+(MAX_KEY_SIZE/2.0f)));
+  printf("\nServer has capacity for %d keys \n", config->keysToPreload);
+  if(config->keysToPreload > lines)
+    config->keysToPreload = lines;
+  printf("Average Size = %10.5f\n", avg_size );
+  printf("Keys to Preload = %d \n", config->keysToPreload);
+
+
+
   fclose(file);
 #ifdef FLEXUS
   MAGIC2(200, 0);
@@ -259,7 +270,7 @@ struct dep_dist* loadAndScaleDepFile(struct config* config) {
   config->keysToPreload = floor(1024.0*1024*config->server_memory/(avg_size+(MAX_KEY_SIZE/2.0f)));
   printf("\nServer has capacity for %d keys \n", config->keysToPreload);
   if(config->keysToPreload > newLines)
-    config->keysToPreload = newLines;
+    config->keysToPreload = newLines-1;
   printf("Average Size = %10.5f\n", avg_size );
   printf("Keys to Preload = %d \n", config->keysToPreload);
   while(i>=0){
@@ -356,8 +367,22 @@ struct dep_dist* loadAndScaleDepFile_dimos(struct config* config) {
       k++;
     }
   }
-
   fclose(fileOut);
+
+  //for (i = 0; i < dist->n_entries; ++i) {
+  //  printf("\n[%d]=%1.8f \t %d \t %s", i, dist->dep_entries[i]->cdf, dist->dep_entries[i]->size, dist->dep_entries[i]->key);
+  //}
+  //exit(1);
+
+  // Now set the total number of keys to pre-load
+  avg_size = avg_size/newLines;
+  config->keysToPreload = floor(1024.0*1024*config->server_memory/(avg_size+(MAX_KEY_SIZE/2.0f)));
+  printf("\nServer has capacity for %d keys \n", config->keysToPreload);
+  if(config->keysToPreload > newLines)
+    config->keysToPreload = newLines-1;
+  printf("Average Size = %10.5f\n", avg_size );
+  printf("Keys to Preload = %d \n", config->keysToPreload);
+
 #ifdef FLEXUS
   MAGIC2(200, 0);
 #endif

@@ -111,6 +111,10 @@ void printGlobalStats(struct config* config) {
   printf("%10f, %9.1f,  %10d, %10d, %10d, %10d, %10d, %10f, %10f, %10f, %10f, %10f, %10f, %10f, %10f\n", 
 		timeDiff, rps, global_stats.requests, global_stats.gets, global_stats.sets, global_stats.hits, global_stats.misses,
 		1000*getAvg(&global_stats.response_time), 1000*q90, 1000*q95, 1000*q99, 1000*std, 1000*global_stats.response_time.min, 1000*global_stats.response_time.max, getAvg(&global_stats.get_size));
+  //printf("\n**%f**\n", global_stats.response_time.s0);
+  //int j;
+  //for (int j = 0; j < global_stats.response_time.; ++j) {
+  //}
   int i;
   printf("Outstanding requests per worker:\n");
   for(i=0; i<config->n_workers; i++){
@@ -126,6 +130,9 @@ void printGlobalStats(struct config* config) {
   pthread_mutex_unlock(&stats_lock);
 
 }//End printGlobalStats()
+
+
+//void resetStats
 
 
 //Print out statistics every second

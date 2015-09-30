@@ -38,6 +38,14 @@ void* workerFunction(void* arg) {
 
 void workerLoop(struct worker* worker) {
 
+  calibrateCpuClockSpeed(&(worker->cpuHz));
+  /*
+  struct timeval lalala;
+  unsigned long long test = 2400809336UL;
+  getTimeFromCpuCycles(&test, &(worker->cpuHz), &lalala);
+  printf("\n\n**********%dsec %ld usec*************\n\n", lalala.tv_sec, lalala.tv_usec);
+  */
+
   event_base_priority_init(worker->event_base, 2);
 
   //Seed event for each fd
@@ -101,17 +109,19 @@ struct request* getNextRequest(struct worker* worker) {
 }//End getNextRequest()
 
 void sendCallback(int fd, short eventType, void* args) {
-  struct worker* worker = args;
-  struct timeval timestamp, timediff, timeadd;
-  gettimeofday(&timestamp, NULL);
+  //nanosleep((struct timespec[]){{0, 50000L}}, NULL);
 
-  timersub(&timestamp, &(worker->last_write_time), &timediff);
-  double diff = timediff.tv_usec * 1e-6  + timediff.tv_sec;
+  struct worker* worker = args;
 
   struct int_dist* interarrival_dist = worker->config->interarrival_dist;
-  int interarrival_time  = 0;
   //Null interarrival_dist means no waiting
   if(interarrival_dist != NULL){
+    struct timeval timestamp, timediff, timeadd;
+    gettimeofday(&timestamp, NULL);
+    timersub(&timestamp, &(worker->last_write_time), &timediff);
+    double diff = timediff.tv_usec * 1e-6  + timediff.tv_sec;
+    int interarrival_time  = 0;
+
     if(worker->interarrival_time <= 0){
         interarrival_time = getIntQuantile(interarrival_dist); //In microseconds
         //   printf("new interarrival_time %d\n", interarrival_time);
@@ -122,11 +132,11 @@ void sendCallback(int fd, short eventType, void* args) {
       if( interarrival_time/1.0e6 > diff){
           return;
       }
-  }
-  worker->interarrival_time = -1;
 
-  timeadd.tv_sec = 0; timeadd.tv_usec = interarrival_time; 
-  timeradd(&(worker->last_write_time), &timeadd, &(worker->last_write_time));
+    worker->interarrival_time = -1;
+    timeadd.tv_sec = 0; timeadd.tv_usec = interarrival_time;
+    timeradd(&(worker->last_write_time), &timeadd, &(worker->last_write_time));
+  }
 
   struct request* request = NULL;
   if(worker->incr_fix_queue_tail != worker->incr_fix_queue_head) {
@@ -151,7 +161,6 @@ void sendCallback(int fd, short eventType, void* args) {
     return;
   }
 
-
   sendRequest(request);
   
  
@@ -159,7 +168,6 @@ void sendCallback(int fd, short eventType, void* args) {
 
 
 void receiveCallback(int fd, short eventType, void* args) {
-
   struct worker* worker = args;
 
   struct request* request = getNextRequest(worker);
@@ -168,12 +176,23 @@ void receiveCallback(int fd, short eventType, void* args) {
     return;
   }
 
+  /*
   struct timeval readTimestamp, timediff;
   gettimeofday(&readTimestamp, NULL);
   timersub(&readTimestamp, &(request->send_time), &timediff);
   double diff = timediff.tv_usec * 1e-6  + timediff.tv_sec;
+  //printf("(%ld sec , %ld usec) diff=%2.8f sec", timediff.tv_sec, timediff.tv_usec, diff);
+*/
 
-  receiveResponse(request, diff); 
+  struct timeval timediff;
+  unsigned long long tscDiff;
+  myRdtsc(&tscDiff);
+  tscDiff = tscDiff - request->send_time_tsc;
+  getTimeFromCpuCycles(&tscDiff, &(request->worker->cpuHz), &timediff);
+  double diff  = timediff.tv_usec * 1e-6  + timediff.tv_sec;
+
+
+  receiveResponse(request, diff);
   deleteRequest(request);
   worker->received_warmup_keys++;
 
@@ -214,7 +233,7 @@ void createWorkers(struct config* config) {
   }
 
   if(config->n_workers > config->n_connections_total ) {
-    printf("Overridge n_connections_total because < n_workers\n");
+    printf("Overriding n_connections_total because < n_workers\n");
     config->n_connections_total = config->n_workers;
   }
 

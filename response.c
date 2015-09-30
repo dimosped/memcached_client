@@ -100,6 +100,26 @@ int udpReceiveResponse(struct request* request, int final, double difftime) {
 
 
 int tcpReceiveResponse(struct request* request, int final, double difftime) {
+  /*struct response_header response_header;
+  int fd = request->connection->sock;
+
+  readBlock(fd, &response_header, sizeof(response_header));
+
+  int bodySize = 0;
+  bodySize |= response_header.total_body_length[3]&0xFF;
+  bodySize |= (response_header.total_body_length[2]&0xFF) <<8;
+  bodySize |= (response_header.total_body_length[1]&0xFF) <<16;
+  bodySize |= (response_header.total_body_length[0]&0xFF) <<24;
+
+
+  char* body = malloc(bodySize);
+  readBlock(fd, body, bodySize);
+
+  free(body);
+
+  return 0;
+  */
+
 
   struct response_header response_header;
   int fd = request->connection->sock;
