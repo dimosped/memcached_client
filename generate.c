@@ -423,8 +423,13 @@ struct request* generateRequest(struct config* config, struct worker* worker) {
       request = createRequest(op, conn, worker, key, value,type);
       request->next_request = NULL;
       return request;
-    } else { 
-     dep_entry = getRandomDepEntry(config->dep_dist, worker);
+    } else {
+      if(config->hit_one_object) {
+        //getRandomDepEntry(config->dep_dist, worker);
+        dep_entry = config->dep_dist->dep_entries[0];
+      }
+      else
+        dep_entry = getRandomDepEntry(config->dep_dist, worker);
     }
     key = dep_entry->key;
     valueSize = dep_entry->size;
@@ -491,7 +496,13 @@ struct request* generateRequest(struct config* config, struct worker* worker) {
 
         currentRequest = nextRequest;
         if(config->dep_dist != NULL){
-          struct dep_entry* dep_entry = getRandomDepEntry(config->dep_dist, worker);
+          struct dep_entry* dep_entry;
+          if(config->hit_one_object) {
+            //getRandomDepEntry(config->dep_dist, worker);
+            dep_entry = config->dep_dist->dep_entries[0];
+          }
+          else
+            dep_entry = getRandomDepEntry(config->dep_dist, worker);
           key = dep_entry->key;
         } else {
           int keyIndex = getIntQuantile(config->key_pop_dist);

@@ -63,9 +63,9 @@ void tcpSendRequest(struct request* request) {
 
       memcpy(ptr, sendRequest->value, sendRequest->value_size);
 
-      myRdtsc(&(request->send_time_tsc));
+      myRdtsc(&(sendRequest->send_time_tsc));
 
-      gettimeofday(&request->send_time, NULL);
+      gettimeofday(&sendRequest->send_time, NULL);
       writeBlock(request->connection->sock, oneBigPacket, totalSize);
 
       free(oneBigPacket);

@@ -145,9 +145,27 @@ void statsLoop(struct config* config) {
   sleep(2);
   printf("Stats:\n");
   printf("-------------------------\n");
+
+  //dumpLatencyStats = NULL;
+  //int ii = 0, j = 0;
   while(1) {
+    /*ii++;
+    if(ii == 5){
+      dumpLatencyStats = malloc(sizeof(*dumpLatencyStats) * global_stats.requests * 2);
+      for (j = 0; j < global_stats.requests; ++j)
+        dumpLatencyStats[j] = 0;
+    }else if(ii == 6){
+      for (j = 0; j < global_stats.requests; ++j) {
+        printf("*** %f \n", dumpLatencyStats[j]);
+      }
+      exit(1);
+    }*/
+
     printGlobalStats(config);
+
     sleep(config->stats_time);
+
+
   }//End while()
 
 

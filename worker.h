@@ -17,6 +17,7 @@
 #define QUEUE_SIZE 1000000
 #define INCR_FIX_QUEUE_SIZE 1000
 
+
 struct worker {
   
   struct config* config;
@@ -45,6 +46,10 @@ struct worker {
   int warmup_key_check;	
   int received_warmup_keys;
 
+  int freeToSend;
+  int txBatchSize;
+  int currBatchLevel_TX;
+  int currBatchLevel_RX;
 };
 
 

@@ -39,6 +39,11 @@ void* workerFunction(void* arg) {
 void workerLoop(struct worker* worker) {
 
   calibrateCpuClockSpeed(&(worker->cpuHz));
+  worker->freeToSend = 1;
+  worker->txBatchSize = worker->config->tx_batch_size;
+  worker->currBatchLevel_TX = worker->txBatchSize;
+  worker->currBatchLevel_RX = 0;
+
   /*
   struct timeval lalala;
   unsigned long long test = 2400809336UL;
@@ -113,6 +118,9 @@ void sendCallback(int fd, short eventType, void* args) {
 
   struct worker* worker = args;
 
+  if(worker->config->do_latency && !worker->freeToSend)
+    return;
+
   struct int_dist* interarrival_dist = worker->config->interarrival_dist;
   //Null interarrival_dist means no waiting
   if(interarrival_dist != NULL){
@@ -162,7 +170,12 @@ void sendCallback(int fd, short eventType, void* args) {
   }
 
   sendRequest(request);
-  
+
+  if(worker->config->do_latency) {
+    worker->currBatchLevel_TX--;
+    if (worker->currBatchLevel_TX <= 0)
+      worker->freeToSend = 0;
+  }
  
 }//End sendCallback()
 
@@ -187,14 +200,25 @@ void receiveCallback(int fd, short eventType, void* args) {
   struct timeval timediff;
   unsigned long long tscDiff;
   myRdtsc(&tscDiff);
-  tscDiff = tscDiff - request->send_time_tsc;
+  tscDiff -= request->send_time_tsc;
   getTimeFromCpuCycles(&tscDiff, &(request->worker->cpuHz), &timediff);
   double diff  = timediff.tv_usec * 1e-6  + timediff.tv_sec;
+  //if (dumpLatencyStats != NULL)
+  //  dumpLatencyStats[(int)(global_stats.response_time.s0)] = diff;
 
 
   receiveResponse(request, diff);
   deleteRequest(request);
   worker->received_warmup_keys++;
+
+  if(worker->config->do_latency) {
+    worker->currBatchLevel_RX++;
+    if(worker->currBatchLevel_RX == worker->txBatchSize) {
+      worker->freeToSend = 1;
+      worker->currBatchLevel_RX = 0;
+      worker->currBatchLevel_TX = worker->txBatchSize;
+    }
+  }
 
   if(worker->config->pre_load == 1 && worker->config->dep_dist != NULL && worker->received_warmup_keys == worker->config->keysToPreload){
     printf("You are warmed up, sir\n");

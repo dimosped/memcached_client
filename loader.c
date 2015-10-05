@@ -11,6 +11,7 @@ void printUsage() {
 
         printf( "usage: loader [-option]\n"
                 "        [-a arg  input distribution file]\n"
+                "        [-b arg  the size of batch for sent requests (only for the latency test)]\n"
                 "        [-c arg  total number of connections]\n"
                 "        [-d arg  value size distribution file]\n"
                 "        [-D arg  size of main memory available to each memcached server in MB]\n"
@@ -27,12 +28,13 @@ void printUsage() {
                 "        [-N arg provide a key population distribution file]\n"
                 "        [-u use UDP protocl (default: TCP)]\n"
                 "        [-o arg  ouput distribution file, if input needs to be scaled]\n"
+                "        [-q arg  request always hit the same object (maximize the CPU cache hits)]\n"
                 "        [-r ATTEMPTED requests per second (default: max out rps)]\n"
                 "        [-s server configuration file]\n"
                 "        [-S dataset scaling factor]\n"
                 "        [-t arg  runtime of loadtesting in seconds (default: run forever)]\n"
                 "        [-T arg  interval between stats printing (default: 1)]\n"
-                "        [-w number of worker threads]\n"
+                "        [-w number of worker threads (specify 0 for latency test)]\n"
                 "        [-x run timing tests instead of loadtesting]\n");
 }
 
@@ -78,9 +80,12 @@ struct config* parseArgs(int argc, char** argv) {
     config->server_port[i]=MEMCACHED_PORT;
     config->server_ip_address[i]=NULL;
   }
+  config->do_latency = 0;
+  config->tx_batch_size = 1;
+  config->hit_one_object = 0;
 
   int c;
-  while ((c = getopt (argc, argv, "a:c:d:D:ef:g:hi:jk:l:L:m:MnN:o:p:ur:s:S:t:T:w:W:xz")) != -1) {
+  while ((c = getopt (argc, argv, "a:b:c:d:D:ef:g:hi:jk:l:L:m:MnN:o:p:qur:s:S:t:T:w:W:xz")) != -1) {
     switch (c) {
 
       case 'a':
@@ -179,6 +184,29 @@ struct config* parseArgs(int argc, char** argv) {
 
       case 'r':
         config->rps = atoi(optarg);
+        if(config->rps == 0)
+          config->do_latency = 1;
+          if (config->do_latency && config->n_workers > 1){
+            printf("Server latency tests require only one worker thread (user has specified %d).\n", config->n_workers);
+            exit(-1);
+          }
+        break;
+
+      case 'b':
+        if(!config->do_latency){
+          printf("You can only use the batch flag if you have also specified that it is a latency test (flag: \"-r 0\").");
+          exit(1);
+        }
+        config->tx_batch_size = atoi(optarg);
+        if(config->tx_batch_size < 1 || config->tx_batch_size > 1000){
+          printf("Please choose a request TX batch size between 1 and 1000 (you selected %d).", config->tx_batch_size);
+          exit(1);
+        }
+        break;
+
+      case 'q':
+        config->hit_one_object = 1;
+        printf("\nHitting only one object.\n");
         break;
 
       case 's':
@@ -348,6 +376,31 @@ void cleanUp(struct config* config) {
 
 
 int main(int argc, char** argv){
+
+  /*struct request* request = malloc(sizeof(struct request));
+  printf("\n%p\n", (void *) request);
+
+
+  printf("\n%p\n", &request->send_time_tsc);
+
+  struct request* request2 = request;
+  printf("\n%p\n", &request2->send_time_tsc);
+
+
+  myRdtsc(&request2->send_time_tsc);
+  printf("\n%llu\n", request2->send_time_tsc);
+
+  myRdtsc(&request2->send_time_tsc);
+  printf("\n%llu\n", request2->send_time_tsc);
+
+
+  //printf("\n%p\n", (void *) request2);
+  //printf("\n%p\n", &request2);
+
+
+  exit(1);
+   */
+
   
   struct config* config = parseArgs(argc, argv);
   printConfiguration(config);

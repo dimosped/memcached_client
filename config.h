@@ -59,7 +59,9 @@ struct config {
 
   uint32_t current_request_uid;
 
-
+  int do_latency;
+  int tx_batch_size;
+  int hit_one_object;
 };
 
 #endif

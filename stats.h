@@ -66,6 +66,7 @@ double getAvg(struct stat* stat);
 double getStdDev(struct stat* stat);
 void statsLoop(struct config* config);
 
+//double *dumpLatencyStats;
 
 #endif
 
