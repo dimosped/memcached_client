@@ -62,6 +62,7 @@ struct config {
   int do_latency;
   int tx_batch_size;
   int hit_one_object;
+  int forceUniformKeyDist;
 };
 
 #endif

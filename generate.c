@@ -62,8 +62,10 @@ struct dep_entry* getRandomDepEntry(struct dep_dist* dep_dist, struct worker* wo
   int bottom = dep_dist->n_entries-1;
   int current = bottom/2;
   struct dep_entry* dep_entry = NULL;
+  //int selectedIndex = 0;
   while(top != bottom){
     dep_entry = dep_dist->dep_entries[current];
+    //selectedIndex = current;
 //    printf("top %d bottom %d current %d lookup %f cdf %f\n", top, bottom, current, cdf_to_lookup, dep_entry->cdf);
     if( dep_entry->cdf > cdf_to_lookup){
       bottom = current;
@@ -74,6 +76,9 @@ struct dep_entry* getRandomDepEntry(struct dep_dist* dep_dist, struct worker* wo
   }
 
  //  printf("top %d bottom %d current %d lookup %f cdf %f\n", top, bottom, current, cdf_to_lookup, dep_entry->cdf);
+
+  //nanosleep((struct timespec[]){{0, 10e9L}}, NULL);
+  //printf(">>>>%d<<<<<\n", selectedIndex);
 
   return dep_entry;  
 }
@@ -177,6 +182,9 @@ struct dep_dist* loadDepFile(struct config* config) {
     lines++;
   }
   fclose(file);
+
+  double step = 1.0/((double)lines);
+
   dist->dep_entries = malloc(sizeof(struct dep_entry*)*lines);
   dist->n_entries = lines;
   int i = lines-1;
@@ -187,7 +195,10 @@ struct dep_dist* loadDepFile(struct config* config) {
     char* sizeValue = strtok(NULL, " ,\n");
     char* key = strtok(NULL, " ,\n");
     struct dep_entry* entry = malloc(sizeof(struct dep_entry));
-    entry->cdf = atof(cdfValue);
+    if (config->forceUniformKeyDist)
+      entry->cdf = 1.0+(step*(i-(lines-1)));
+    else
+      entry->cdf = atof(cdfValue);
     entry->size = atoi(sizeValue);
     strcpy(entry->key, key);
     //fprintf(stdout, "(%1.10f, %d, %s)\n", entry->cdf, entry->size, entry->key);
@@ -424,12 +435,13 @@ struct request* generateRequest(struct config* config, struct worker* worker) {
       request->next_request = NULL;
       return request;
     } else {
-      if(config->hit_one_object) {
+      if(config->hit_one_object >= 0) {
         //getRandomDepEntry(config->dep_dist, worker);
-        dep_entry = config->dep_dist->dep_entries[0];
+        dep_entry = config->dep_dist->dep_entries[config->hit_one_object];
       }
-      else
+      else {
         dep_entry = getRandomDepEntry(config->dep_dist, worker);
+      }
     }
     key = dep_entry->key;
     valueSize = dep_entry->size;
@@ -497,9 +509,9 @@ struct request* generateRequest(struct config* config, struct worker* worker) {
         currentRequest = nextRequest;
         if(config->dep_dist != NULL){
           struct dep_entry* dep_entry;
-          if(config->hit_one_object) {
+          if(config->hit_one_object >= 0) {
             //getRandomDepEntry(config->dep_dist, worker);
-            dep_entry = config->dep_dist->dep_entries[0];
+            dep_entry = config->dep_dist->dep_entries[config->hit_one_object];
           }
           else
             dep_entry = getRandomDepEntry(config->dep_dist, worker);

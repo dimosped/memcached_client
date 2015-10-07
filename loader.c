@@ -28,12 +28,13 @@ void printUsage() {
                 "        [-N arg provide a key population distribution file]\n"
                 "        [-u use UDP protocl (default: TCP)]\n"
                 "        [-o arg  ouput distribution file, if input needs to be scaled]\n"
-                "        [-q arg  request always hit the same object (maximize the CPU cache hits)]\n"
+                "        [-q arg  request always hit the same object with the specified index (maximize the CPU cache hits)]\n"
                 "        [-r ATTEMPTED requests per second (default: max out rps)]\n"
                 "        [-s server configuration file]\n"
                 "        [-S dataset scaling factor]\n"
                 "        [-t arg  runtime of loadtesting in seconds (default: run forever)]\n"
                 "        [-T arg  interval between stats printing (default: 1)]\n"
+                "        [-U override key distribution file and use uniform distribution]\n"
                 "        [-w number of worker threads (specify 0 for latency test)]\n"
                 "        [-x run timing tests instead of loadtesting]\n");
 }
@@ -82,10 +83,11 @@ struct config* parseArgs(int argc, char** argv) {
   }
   config->do_latency = 0;
   config->tx_batch_size = 1;
-  config->hit_one_object = 0;
+  config->hit_one_object = -1;
+  config->forceUniformKeyDist = 0;
 
   int c;
-  while ((c = getopt (argc, argv, "a:b:c:d:D:ef:g:hi:jk:l:L:m:MnN:o:p:qur:s:S:t:T:w:W:xz")) != -1) {
+  while ((c = getopt (argc, argv, "a:b:c:d:D:ef:g:hi:jk:l:L:m:MnN:o:p:q:uUr:s:S:t:T:w:W:xz")) != -1) {
     switch (c) {
 
       case 'a':
@@ -167,6 +169,10 @@ struct config* parseArgs(int argc, char** argv) {
       case 'u':
         config->protocol_mode = UDP_MODE;     
         break;
+
+      case 'U':
+        config->forceUniformKeyDist = 1;
+        break;
  
       //Fraction of requests that are gets
       case 'g':
@@ -205,8 +211,8 @@ struct config* parseArgs(int argc, char** argv) {
         break;
 
       case 'q':
-        config->hit_one_object = 1;
-        printf("\nHitting only one object.\n");
+        config->hit_one_object = atoi(optarg);
+        printf("\nHitting only one object with index %d.\n", config->hit_one_object);
         break;
 
       case 's':
@@ -244,6 +250,11 @@ struct config* parseArgs(int argc, char** argv) {
         printUsage();
         exit(1);
     }
+  }
+
+  if(config->forceUniformKeyDist && (config->output_file != NULL || config->input_file == NULL) ){
+    printf("The uniform distribution argument can only be used with '-a' and without '-o' \n");
+    exit(1);
   }
 
   return config;
@@ -327,6 +338,11 @@ void setupLoad(struct config* config) {
     //printf("OUTSIDE");
     //config->dep_dist = loadAndScaleDepFile(config);
     config->dep_dist = loadAndScaleDepFile_dimos(config);
+  }
+
+  if(config->hit_one_object >= config->dep_dist->n_entries){
+    printf("You have selected an index (%d) for the object to request that is too large.\n", config->hit_one_object);
+    exit(1);
   }
 
   if(config->value_size_dist == NULL){
