@@ -192,10 +192,10 @@ struct config* parseArgs(int argc, char** argv) {
         config->rps = atoi(optarg);
         if(config->rps == 0)
           config->do_latency = 1;
-          if (config->do_latency && config->n_workers > 1){
+          /*if (config->do_latency && config->n_workers > 1){
             printf("Server latency tests require only one worker thread (user has specified %d).\n", config->n_workers);
             exit(-1);
-          }
+          }*/
         break;
 
       case 'b':
@@ -379,7 +379,6 @@ void setupLoad(struct config* config) {
 
 //Cleanup mallocs and make valgrind happy
 void cleanUp(struct config* config) {
- 
   int i;
   for( i = 0; i < config->key_list->n_keys; i++ ){ 
     free(config->key_list->keys[i]);

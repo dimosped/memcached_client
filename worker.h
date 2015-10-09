@@ -50,6 +50,7 @@ struct worker {
   int txBatchSize;
   int currBatchLevel_TX;
   int currBatchLevel_RX;
+  struct event* send_event;
 };
 
 

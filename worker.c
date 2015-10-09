@@ -43,6 +43,7 @@ void workerLoop(struct worker* worker) {
   worker->txBatchSize = worker->config->tx_batch_size;
   worker->currBatchLevel_TX = worker->txBatchSize;
   worker->currBatchLevel_RX = 0;
+  worker->send_event =  NULL;
 
   /*
   struct timeval lalala;
@@ -57,12 +58,18 @@ void workerLoop(struct worker* worker) {
   int i;
   for( i = 0; i < worker->nConnections; i++) {
 
-    struct event* ev = event_new(worker->event_base, worker->connections[i]->sock, EV_WRITE|EV_PERSIST, sendCallback, worker);
-    event_priority_set(ev, 1);
-    event_add(ev, NULL);
+    worker->send_event = event_new(worker->event_base, worker->connections[i]->sock, EV_WRITE|EV_PERSIST, sendCallback, worker);
+    event_priority_set(worker->send_event, 3);
+    event_add(worker->send_event, NULL);
+
+    struct event* ev;
+
+    //struct event* ev = event_new(worker->event_base, worker->connections[i]->sock, EV_WRITE|EV_PERSIST, sendCallback, worker);
+    //event_priority_set(ev, 1);
+    //event_add(ev, NULL);
 
     ev = event_new(worker->event_base, worker->connections[i]->sock, EV_READ|EV_PERSIST, receiveCallback, worker);
-    event_priority_set(ev, 2);
+    event_priority_set(ev, 0);
     event_add(ev, NULL);
 
   }//End for i
@@ -173,8 +180,10 @@ void sendCallback(int fd, short eventType, void* args) {
 
   if(worker->config->do_latency) {
     worker->currBatchLevel_TX--;
-    if (worker->currBatchLevel_TX <= 0)
+    if (worker->currBatchLevel_TX <= 0) {
       worker->freeToSend = 0;
+      event_del(worker->send_event);
+    }
   }
  
 }//End sendCallback()
@@ -217,7 +226,13 @@ void receiveCallback(int fd, short eventType, void* args) {
       worker->freeToSend = 1;
       worker->currBatchLevel_RX = 0;
       worker->currBatchLevel_TX = worker->txBatchSize;
+      event_priority_set(worker->send_event, 3);
+      event_add(worker->send_event, NULL);
     }
+    //else if (!worker->freeToSend && (worker->currBatchLevel_RX >= ((int)worker->txBatchSize*0.8))){
+    //  event_priority_set(worker->send_event, 3);
+    //  event_add(worker->send_event, NULL);
+    //}
   }
 
   if(worker->config->pre_load == 1 && worker->config->dep_dist != NULL && worker->received_warmup_keys == worker->config->keysToPreload){

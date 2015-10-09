@@ -100,7 +100,8 @@ int udpReceiveResponse(struct request* request, int final, double difftime) {
 
 
 int tcpReceiveResponse(struct request* request, int final, double difftime) {
-  /*struct response_header response_header;
+  /*
+  struct response_header response_header;
   int fd = request->connection->sock;
 
   readBlock(fd, &response_header, sizeof(response_header));
@@ -119,7 +120,6 @@ int tcpReceiveResponse(struct request* request, int final, double difftime) {
 
   return 0;
   */
-
 
   struct response_header response_header;
   int fd = request->connection->sock;
